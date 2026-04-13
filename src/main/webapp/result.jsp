@@ -52,6 +52,11 @@
             color: #2e7d32;
             border-left: 6px solid #2e7d32;
         }
+        .error {
+            background: #fff3e0;
+            color: #e67e22;
+            border-left: 6px solid #e67e22;
+        }
         .image-box {
             margin: 25px 0;
             border-radius: 24px;
@@ -111,22 +116,40 @@
     <%
         String message = (String) request.getAttribute("message");
         String imagePath = (String) request.getAttribute("imagePath");
+        Boolean isError = (Boolean) request.getAttribute("isError");
         if (message == null) message = "तांत्रिक बिघाड, कृपया पुन्हा प्रयत्न करा.";
+        if (isError == null) isError = false;
         
-        // ✅ योग्य तर्क: "No pothole" असल्यास safe, अन्यथा "POTHOLE found" असल्यास खड्डा
-        boolean isPothole = message.toLowerCase().contains("pothole found") || 
-                            message.toLowerCase().contains("⚠️ pothole") ||
-                            (message.toLowerCase().contains("pothole") && !message.toLowerCase().contains("no pothole"));
+        boolean isPothole = false;
+        String badgeClass = "error";
+        String displayMessage = "";
+        
+        if (isError) {
+            badgeClass = "error";
+            displayMessage = "⚠️ त्रुटी";
+        } else {
+            // खड्डा तपासा (फक्त "POTHOLE FOUND" असल्यासच)
+            isPothole = message.contains("POTHOLE FOUND");
+            if (isPothole) {
+                badgeClass = "pothole";
+                displayMessage = "⚠️ खड्डा आढळला !";
+            } else {
+                badgeClass = "safe";
+                displayMessage = "✅ रस्ता सुरक्षित, खड्डा नाही.";
+            }
+        }
     %>
 
-    <div class="result-badge <%= isPothole ? "pothole" : "safe" %>">
-        <%= isPothole ? "⚠️ खड्डा आढळला !" : "✅ रस्ता सुरक्षित, खड्डा नाही." %>
+    <div class="result-badge <%= badgeClass %>">
+        <%= displayMessage %>
     </div>
     <p style="margin: 5px 0 10px; font-weight:500;"><%= message %></p>
 
-    <div class="image-box">
-        <img src="uploads/<%= imagePath %>" alt="Road Image">
-    </div>
+    <% if (imagePath != null && !imagePath.isEmpty() && !isError) { %>
+        <div class="image-box">
+            <img src="uploads/<%= imagePath %>" alt="Road Image">
+        </div>
+    <% } %>
 
     <div class="btn-group">
         <a href="index.jsp" class="btn">📸 नवीन फोटो तपासा</a>
