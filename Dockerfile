@@ -1,18 +1,19 @@
-# Stage 1: Build the WAR file using Maven
-FROM maven:3.9-eclipse-temurin-17 AS build
+# Stage 1: Build the WAR file
+FROM maven:3.9-eclipse-temurin-11 AS build
 WORKDIR /app
 
-# Copy pom.xml and source code
+# Copy pom.xml first (to cache dependencies)
 COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copy source code and build
 COPY src ./src
+RUN mvn package -DskipTests
 
-# Build the project
-RUN mvn clean package
+# Stage 2: Run with Tomcat
+FROM tomcat:9.0-jdk11
 
-# Stage 2: Run the WAR file in Tomcat
-FROM tomcat:10.1-jdk17
-
-# Install OpenCV
+# Install OpenCV native library
 RUN apt-get update && apt-get install -y libopencv-java && rm -rf /var/lib/apt/lists/*
 ENV OPENCV_JAVA_BIN=/usr/share/java/opencv4/opencv-480.jar
 
