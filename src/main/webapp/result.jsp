@@ -103,14 +103,20 @@
 </head>
 <body>
 <div class="container">
-    <img src="images/logo.jpeg" alt="Panvel Logo" class="logo-small" onerror="this.src='https://via.placeholder.com/100'">
+    <div style="background: #1e3c72; color: white; padding: 8px 20px; border-radius: 50px; display: inline-block; margin-bottom: 15px; font-weight: bold;">
+        🏛️ Panvel Mahanagar Palika
+    </div>
     <h2>🔍 पोटहोल तपासणी परिणाम</h2>
 
     <%
         String message = (String) request.getAttribute("message");
         String imagePath = (String) request.getAttribute("imagePath");
         if (message == null) message = "तांत्रिक बिघाड, कृपया पुन्हा प्रयत्न करा.";
-        boolean isPothole = message.toLowerCase().contains("pothole") || message.toLowerCase().contains("खड्डा");
+        
+        // ✅ योग्य तर्क: "No pothole" असल्यास safe, अन्यथा "POTHOLE found" असल्यास खड्डा
+        boolean isPothole = message.toLowerCase().contains("pothole found") || 
+                            message.toLowerCase().contains("⚠️ pothole") ||
+                            (message.toLowerCase().contains("pothole") && !message.toLowerCase().contains("no pothole"));
     %>
 
     <div class="result-badge <%= isPothole ? "pothole" : "safe" %>">
