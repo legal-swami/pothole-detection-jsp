@@ -9,12 +9,12 @@ import java.util.ArrayList;
 public class PotholeDetector {
     
     static {
-        // JavaCV native library load
         org.bytedeco.javacpp.Loader.load(org.bytedeco.opencv.global.opencv_core.class);
     }
     
     /**
-     * इमेज रस्त्याची आहे की नाही ते तपासते.
+     * फोटो रस्त्याचा आहे की नाही ते तपासते.
+     * फक्त अत्यंत स्पष्ट अवैध इमेज (उदा. पांढरा कागद, कोणताही किनारा नसलेला) नाकारते.
      */
     public static boolean isValidRoadImage(String imagePath) {
         try {
@@ -23,35 +23,43 @@ public class PotholeDetector {
             
             int width = img.cols();
             int height = img.rows();
-            if (width < 200 || height < 200 || width > 4000 || height > 4000) {
-                return false;
-            }
+            // खूप लहान फोटो (उदा. 50x50) नको
+            if (width < 100 || height < 100) return false;
             
             Mat gray = new Mat();
             opencv_imgproc.cvtColor(img, gray, opencv_imgproc.COLOR_BGR2GRAY);
             
-            Mat blurred = new Mat();
-            opencv_imgproc.GaussianBlur(gray, blurred, new Size(5, 5), 2);
-            
+            // 1. Edge density (Canny)
             Mat edges = new Mat();
-            opencv_imgproc.Canny(blurred, edges, 50, 150);
-            
+            opencv_imgproc.Canny(gray, edges, 50, 150);
             int totalPixels = width * height;
             int edgePixels = opencv_core.countNonZero(edges);
             double edgeDensity = (double) edgePixels / totalPixels;
             
-            if (edgeDensity < 0.02 || edgeDensity > 0.60) {
+            // जर edge density 0.7 पेक्षा जास्त (खूप गोंधळलेला, उदा. सांडलेला पेपर) किंवा 0.005 पेक्षा कमी (एकसारखा रंग) तर अवैध
+            if (edgeDensity > 0.75 || edgeDensity < 0.005) {
                 return false;
             }
             
+            // 2. Brightness (सरासरी तेजस्वीता)
             Scalar mean = opencv_core.mean(gray);
-            double avgBrightness = mean.get(0);  // get(0) instead of val(0)
-            if (avgBrightness < 40 || avgBrightness > 210) {
+            double avgBrightness = mean.get(0);
+            // खूप गडद (रात्रीचा फोटो) किंवा खूप उजळ (सूर्यप्रकाशात पांढरा कागद) तपासा
+            if (avgBrightness < 15 || avgBrightness > 245) {
                 return false;
             }
             
+            // 3. Brightness variance (मानक विचलन) – एकसारख्या फोटोसाठी (उदा. भिंत)
+            Mat stdDev = new Mat();
+            opencv_core.meanStdDev(gray, mean, stdDev);
+            double stdDevVal = stdDev.createIndexer().getDouble(0);
+            if (stdDevVal < 5.0) {  // खूप एकसारखा रंग, रस्ता नाही
+                return false;
+            }
+            
+            // 4. Aspect ratio – अतिशय लांब किंवा अरुंद फोटो (उदा. बारकोड) नाकारा
             double aspect = (double) width / height;
-            if (aspect < 0.6 || aspect > 2.5) {
+            if (aspect < 0.3 || aspect > 3.5) {
                 return false;
             }
             
@@ -64,7 +72,7 @@ public class PotholeDetector {
     }
     
     /**
-     * खड्डा शोधण्याची मूळ मेथड
+     * खड्डा शोधण्याची मूळ मेथड (बदललेली नाही)
      */
     public static boolean detectPothole(String imagePath) {
         try {
