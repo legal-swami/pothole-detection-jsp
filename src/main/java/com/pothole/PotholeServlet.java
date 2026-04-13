@@ -11,9 +11,9 @@ import javax.servlet.http.Part;
 
 @WebServlet("/PotholeServlet")
 @MultipartConfig(
-    fileSizeThreshold = 1024 * 1024 * 2,   // 2MB
-    maxFileSize = 1024 * 1024 * 10,        // 10MB
-    maxRequestSize = 1024 * 1024 * 50      // 50MB
+    fileSizeThreshold = 1024 * 1024 * 2,
+    maxFileSize = 1024 * 1024 * 10,
+    maxRequestSize = 1024 * 1024 * 50
 )
 public class PotholeServlet extends HttpServlet {
     
@@ -35,24 +35,38 @@ public class PotholeServlet extends HttpServlet {
             // Save the uploaded file
             filePart.write(filePath);
             
-            // Perform detection
+            // ✅ STEP 1: प्रथम इमेज वैध रस्त्याची आहे का ते तपासा
+            boolean isValidRoad = PotholeDetector.isValidRoadImage(filePath);
+            
+            if (!isValidRoad) {
+                // अवैध इमेज – error message पाठवा
+                request.setAttribute("message", "❌ अवैध फोटो! कृपया फक्त रस्त्याचा स्पष्ट फोटो अपलोड करा.");
+                request.setAttribute("imagePath", fileName);
+                request.setAttribute("isError", true);
+                request.getRequestDispatcher("result.jsp").forward(request, response);
+                return;
+            }
+            
+            // ✅ STEP 2: वैध रस्ता असल्यास खड्डा तपासा
             boolean hasPothole = PotholeDetector.detectPothole(filePath);
             
             String message;
             if (hasPothole) {
-                message = "⚠️ POTHOLE DETECTED! Please drive carefully.";
+                message = "⚠️ POTHOLE FOUND on road! Please drive carefully.";
             } else {
                 message = "✅ No pothole detected. Road is safe.";
             }
             
             request.setAttribute("message", message);
             request.setAttribute("imagePath", fileName);
+            request.setAttribute("isError", false);
             request.getRequestDispatcher("result.jsp").forward(request, response);
             
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("message", "Error processing image: " + e.getMessage());
+            request.setAttribute("message", "❌ त्रुटी: फोटो प्रोसेस करताना बिघाड. कृपया पुन्हा प्रयत्न करा.");
             request.setAttribute("imagePath", "");
+            request.setAttribute("isError", true);
             request.getRequestDispatcher("result.jsp").forward(request, response);
         }
     }
@@ -62,9 +76,7 @@ public class PotholeServlet extends HttpServlet {
         for (String token : contentDisp.split(";")) {
             if (token.trim().startsWith("filename")) {
                 String fileName = token.substring(token.indexOf("=") + 2, token.length() - 1);
-                // Sanitize filename
                 fileName = new File(fileName).getName();
-                // Add timestamp to avoid conflicts
                 String timestamp = String.valueOf(System.currentTimeMillis());
                 int dotIndex = fileName.lastIndexOf('.');
                 if (dotIndex > 0) {
