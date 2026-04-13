@@ -12,6 +12,9 @@ public class PotholeDetector {
         org.bytedeco.javacpp.Loader.load(org.bytedeco.opencv.global.opencv_core.class);
     }
     
+    /**
+     * फोटो रस्त्याचा आहे की नाही ते तपासते.
+     */
     public static boolean isValidRoadImage(String imagePath) {
         try {
             Mat img = opencv_imgcodecs.imread(imagePath);
@@ -42,7 +45,7 @@ public class PotholeDetector {
                 return false;
             }
             
-            // Standard deviation using Mat outputs
+            // Standard deviation
             Mat meanMat = new Mat();
             Mat stddevMat = new Mat();
             opencv_core.meanStdDev(gray, meanMat, stddevMat);
@@ -63,31 +66,57 @@ public class PotholeDetector {
         }
     }
     
+    /**
+     * फक्त रस्त्याच्या मध्यभागी (मधले 40% क्षेत्र) खड्डा शोधते.
+     * यामुळे रस्त्याच्या बाजूला असलेले खड्डे, विहीर, कुंड यांचा चुकीचा अहवाल येणार नाही.
+     */
     public static boolean detectPothole(String imagePath) {
         try {
             Mat original = opencv_imgcodecs.imread(imagePath);
             if (original.empty()) return false;
             
-            Mat gray = new Mat();
-            opencv_imgproc.cvtColor(original, gray, opencv_imgproc.COLOR_BGR2GRAY);
+            int width = original.cols();
+            int height = original.rows();
             
+            // Region of Interest (ROI) - फोटोच्या मधले 30% ते 70% क्षेत्र
+            // उदा. रुंदी 1000 पिक्सेल असेल तर 300 ते 700 पर्यंत (म्हणजे मधले 40%)
+            int roiX = (int)(width * 0.30);
+            int roiWidth = (int)(width * 0.40);
+            
+            // सुरक्षितता: roiX आणि roiWidth बाउंडच्या बाहेर नाहीत याची खात्री
+            if (roiX < 0) roiX = 0;
+            if (roiX + roiWidth > width) roiWidth = width - roiX;
+            
+            Rect roi = new Rect(roiX, 0, roiWidth, height);
+            Mat roadArea = new Mat(original, roi);
+            
+            // ग्रेस्केल
+            Mat gray = new Mat();
+            opencv_imgproc.cvtColor(roadArea, gray, opencv_imgproc.COLOR_BGR2GRAY);
+            
+            // Gaussian blur
             Mat blurred = new Mat();
             opencv_imgproc.GaussianBlur(gray, blurred, new Size(5, 5), 2);
             
+            // थ्रेशोल्ड – गडद भाग शोधा
             Mat thresh = new Mat();
             opencv_imgproc.threshold(blurred, thresh, 80, 255, opencv_imgproc.THRESH_BINARY_INV);
             
+            // कॉन्टूर्स शोधा
             MatVector contours = new MatVector();
             Mat hierarchy = new Mat();
             opencv_imgproc.findContours(thresh, contours, hierarchy, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
             
+            // प्रत्येक contour चे क्षेत्रफळ तपासा
             for (int i = 0; i < contours.size(); i++) {
                 double area = opencv_imgproc.contourArea(contours.get(i));
+                // खड्ड्याचा सामान्य आकार (पिक्सेलमध्ये)
                 if (area > 500 && area < 5000) {
                     return true;
                 }
             }
             return false;
+            
         } catch (Exception e) {
             e.printStackTrace();
             return false;
