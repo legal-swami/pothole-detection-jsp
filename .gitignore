@@ -1,0 +1,19 @@
+# Compiled files
+target/
+*.class
+*.war
+
+# IDE files
+.idea/
+*.iml
+.settings/
+.project
+.classpath
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploaded images (local)
+uploads/
