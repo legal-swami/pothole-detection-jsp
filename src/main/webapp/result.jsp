@@ -116,27 +116,24 @@
     <%
         String message = (String) request.getAttribute("message");
         String imagePath = (String) request.getAttribute("imagePath");
-        Boolean isError = (Boolean) request.getAttribute("isError");
+
         if (message == null) message = "तांत्रिक बिघाड, कृपया पुन्हा प्रयत्न करा.";
-        if (isError == null) isError = false;
-        
-        boolean isPothole = false;
+
         String badgeClass = "error";
         String displayMessage = "";
-        
-        if (isError) {
+
+        // ✅ FIXED LOGIC (IMPORTANT)
+        if (message.contains("Pothole Detected")) {
+            badgeClass = "pothole";
+            displayMessage = "⚠️ खड्डा आढळला !";
+        } 
+        else if (message.contains("No Pothole")) {
+            badgeClass = "safe";
+            displayMessage = "✅ रस्ता सुरक्षित, खड्डा नाही.";
+        } 
+        else {
             badgeClass = "error";
-            displayMessage = "⚠️ त्रुटी";
-        } else {
-            // खड्डा तपासा (फक्त "POTHOLE FOUND" असल्यासच)
-            isPothole = message.contains("POTHOLE FOUND");
-            if (isPothole) {
-                badgeClass = "pothole";
-                displayMessage = "⚠️ खड्डा आढळला !";
-            } else {
-                badgeClass = "safe";
-                displayMessage = "✅ रस्ता सुरक्षित, खड्डा नाही.";
-            }
+            displayMessage = "❌ अवैध फोटो!";
         }
     %>
 
@@ -145,7 +142,7 @@
     </div>
     <p style="margin: 5px 0 10px; font-weight:500;"><%= message %></p>
 
-    <% if (imagePath != null && !imagePath.isEmpty() && !isError) { %>
+    <% if (imagePath != null && !imagePath.isEmpty()) { %>
         <div class="image-box">
             <img src="uploads/<%= imagePath %>" alt="Road Image">
         </div>
